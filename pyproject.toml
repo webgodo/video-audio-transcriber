@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "transcribe-fa"
+version = "0.1.0"
+description = "Offline Persian (Farsi) audio/video transcription CLI built on OpenAI Whisper"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["whisper", "persian", "farsi", "transcription", "speech-to-text", "subtitles"]
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+    "faster-whisper>=1.1",
+    "ctranslate2>=4.8.2",
+    "tqdm>=4.60",
+]
+
+[project.optional-dependencies]
+# NVIDIA cuBLAS for GPU inference, installed via pip so no system-wide CUDA
+# install is needed (CTranslate2 >= 4.8.2 no longer needs cuDNN).
+cuda = ["nvidia-cublas-cu12"]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/webgodo/video-audio-transcriber"
+Repository = "https://github.com/webgodo/video-audio-transcriber"
+Issues = "https://github.com/webgodo/video-audio-transcriber/issues"
+
+[project.scripts]
+transcribe-fa = "transcribe_fa.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
