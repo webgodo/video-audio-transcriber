@@ -49,6 +49,8 @@ examples:
   vatfa *.m4a -o out/ -f txt,json --word-timestamps
   vatfa interview.wav --stdout | less
   vatfa recordings/ -m medium --device cpu
+  vatfa podcast.mp3 -f html               # interactive page: click a line, it seeks
+  vatfa subtitles.srt --text              # Persian clean-up only, no model needed
   vatfa --download-only                   # fetch the default model ahead of time
 """
 
@@ -81,12 +83,16 @@ def build_parser() -> argparse.ArgumentParser:
                      help="write outputs here (default: next to each input file)")
     out.add_argument("-f", "--format", dest="formats", action="append", metavar="FMT",
                      help="output format(s), comma-separated or repeated: "
-                          f"{', '.join(FORMATS)} (default: {','.join(DEFAULT_FORMATS)})")
+                          f"{', '.join(FORMATS)} (default: {','.join(DEFAULT_FORMATS)}); "
+                          "html is a self-contained page with click-to-seek and search")
     out.add_argument("--stdout", action="store_true",
                      help="print the transcript text to stdout (no files unless -f is given)")
     out.add_argument("--max-cue-chars", type=int, default=0, metavar="N",
                      help="split srt/vtt cues longer than N characters using word timestamps "
                           "(0 = keep Whisper's segments)")
+    out.add_argument("--embed-media", action="store_true",
+                     help="for -f html: inline the audio into the page as a data URI so the "
+                          "file works on its own (about 1.4x the media size)")
     out.add_argument("--rtl-mark", action="store_true",
                      help="prefix subtitle lines with U+200F so trailing punctuation renders "
                           "correctly in players without proper bidi support")
@@ -357,7 +363,7 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
             task=args.task,
             beam_size=args.beam_size,
             vad=not args.no_vad,
-            word_timestamps=args.word_timestamps or args.max_cue_chars > 0,
+            word_timestamps=args.word_timestamps or args.max_cue_chars > 0 or "html" in formats,
             initial_prompt=prompt,
             condition_on_previous_text=not args.no_context,
             batch_size=args.batch_size,
@@ -384,7 +390,8 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
         out_dir.mkdir(parents=True, exist_ok=True)
     for fmt, target in targets.items():
         source = subtitles if fmt in CUE_FORMATS else transcript
-        write_transcript(source, fmt, target, rtl_mark=args.rtl_mark)
+        write_transcript(source, fmt, target, rtl_mark=args.rtl_mark,
+                         media=path, embed_media=args.embed_media)
 
     speed = duration / elapsed if elapsed > 0 else 0.0
     if not targets:

@@ -79,8 +79,32 @@ vatfa call.wav --stdout | grep قرارداد      # plain text on stdout, pipe-
 vatfa long-podcast.mp3 --batch-size 8      # GPU: batched decoding, several times faster
 vatfa clip.m4a -m medium --device cpu      # lighter model on the CPU
 vatfa clip.m4a --task translate -f txt     # English translation instead
+vatfa podcast.mp3 -f html                  # interactive page: click a line, it seeks
 vatfa --list-models
 ```
+
+### Interactive transcripts
+
+`-f html` writes a single self-contained page: click any line and the audio
+jumps there, words highlight as it plays, and there is a search box.
+
+```bash
+vatfa interview.mp3 -f html                 # interview.html, links interview.mp3
+vatfa interview.mp3 -f html --embed-media   # one file, audio included
+```
+
+The page makes no external requests at all: no CDN, no web font, no
+framework. That is deliberate rather than minimalist, because a page that
+fetched a font on open would quietly undo this tool's main promise. There is a
+test that fails if any absolute URL appears in the output.
+
+Persian and other right-to-left languages are laid out correctly without the
+reader configuring anything. `-f html` turns on word timestamps by itself.
+
+One deployment note: when the page links the media rather than embedding it,
+seeking needs a server that supports HTTP range requests. GitHub Pages, nginx
+and Apache all do. Python's `http.server` does not, so audio opened through it
+will play but refuse to seek. `--embed-media` sidesteps the question entirely.
 
 ### Cleaning up text you already have
 
@@ -108,9 +132,10 @@ that encoding cannot represent `ی` or `ک` at all.
 | Option | Meaning |
 | --- | --- |
 | `-o DIR` | Output directory (default: next to each input). |
-| `-f FMT[,FMT...]` | Output formats: `txt`, `srt`, `vtt`, `json`, `tsv` (default `txt,srt`). |
+| `-f FMT[,FMT...]` | Output formats: `txt`, `srt`, `vtt`, `json`, `tsv`, `html` (default `txt,srt`). |
 | `--stdout` | Print the transcript text to stdout as it is produced (no files unless `-f` is given). |
 | `--max-cue-chars N` | Split `srt`/`vtt` cues longer than N characters on word boundaries (implies word timestamps). |
+| `--embed-media` | For `-f html`: inline the media into the page so the file works on its own. |
 | `--rtl-mark` | Prefix subtitle lines with U+200F for players that render trailing `؟` `.` on the wrong side. |
 | `--skip-existing` | Skip inputs whose output files already exist (resumable batch runs). |
 | `-m MODEL` | `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3` (default), `large-v3-turbo`, or a path / Hugging Face repo of a CTranslate2 Whisper model. |

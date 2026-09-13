@@ -1,9 +1,10 @@
-"""Output writers (txt, srt, vtt, json, tsv) and subtitle cue splitting."""
+"""Output writers (txt, srt, vtt, json, tsv, html) and subtitle cue splitting."""
 
 from __future__ import annotations
 
 import json
 from dataclasses import replace
+from pathlib import Path
 from typing import IO, Callable, Dict, Iterable, List
 
 from .transcriber import Segment, Transcript, Word
@@ -88,7 +89,9 @@ def to_dict(transcript: Transcript) -> dict:
             ]
         segments.append(item)
     return {
-        "source": transcript.source,
+        # File name only. These outputs get shared, and an absolute path leaks
+        # the directory layout (and often the client name) of whoever ran it.
+        "source": Path(transcript.source).name,
         "model": transcript.model,
         "language": transcript.language,
         "language_probability": round(transcript.language_probability, 4),
@@ -111,12 +114,40 @@ def write_tsv(transcript: Transcript, fh: IO[str], **_: object) -> None:
             fh.write(f"{int(round(segment.start * 1000))}\t{int(round(segment.end * 1000))}\t{text}\n")
 
 
+def write_html(
+    transcript: Transcript,
+    fh: IO[str],
+    media: object = None,
+    embed_media: bool = False,
+    **_: object,
+) -> None:
+    """Write a self-contained interactive page (see :mod:`html_view`).
+
+    The import is deferred so the rest of this module stays free of it, the
+    same way the model and progress-bar imports are deferred elsewhere.
+    """
+    from .html_view import render_html
+
+    # Writers only receive the handle, but the page needs to know where it is
+    # being written so it can link the media relatively. StringIO has no name.
+    dest = getattr(fh, "name", None)
+    fh.write(
+        render_html(
+            transcript,
+            media=media if isinstance(media, (str, Path)) else None,
+            dest=dest if isinstance(dest, str) else None,
+            embed_media=bool(embed_media),
+        )
+    )
+
+
 WRITERS: Dict[str, Callable[..., None]] = {
     "txt": write_txt,
     "srt": write_srt,
     "vtt": write_vtt,
     "json": write_json,
     "tsv": write_tsv,
+    "html": write_html,
 }
 
 #: Every supported ``-f`` value, in the order they are offered on the CLI.
