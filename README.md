@@ -1,10 +1,13 @@
 # video-audio-transcriber
 
+[![CI](https://github.com/webgodo/video-audio-transcriber/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/webgodo/video-audio-transcriber/actions/workflows/ci.yml)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Runs 100% offline](https://img.shields.io/badge/runs-100%25%20offline-lightgrey.svg)](#how-it-works)
+
 Offline Persian (Farsi) transcription for audio and video files, built on
 [OpenAI Whisper](https://github.com/openai/whisper). Everything runs on your
 own machine: no API keys, no uploads, no per-minute fees.
-
-Repository: <https://github.com/webgodo/video-audio-transcriber>
 
 ```bash
 vatfa lecture.mp3            # -> lecture.txt and lecture.srt next to the file
