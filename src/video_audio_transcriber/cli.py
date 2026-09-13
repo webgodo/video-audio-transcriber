@@ -28,7 +28,7 @@ from .transcriber import (
     transcribe,
     warm_up,
 )
-from .writers import FORMATS, split_for_subtitles, write_transcript
+from .writers import CUE_FORMATS, FORMATS, split_for_subtitles, write_transcript
 
 log = logging.getLogger("video_audio_transcriber")
 
@@ -132,10 +132,15 @@ def build_parser() -> argparse.ArgumentParser:
                    help="batched decoding for GPUs, e.g. 8; much faster on long files (default: off)")
 
     t = p.add_argument_group("Persian text clean-up")
+    t.add_argument("--text", action="store_true",
+                   help="treat the inputs as text or subtitle files (txt, srt, vtt) and only run "
+                        "the Persian clean-up on them: no model, no download. '-' reads stdin")
     t.add_argument("--no-normalize", action="store_true",
                    help="keep raw Whisper output (no ی/ک fixes, ZWNJ or punctuation clean-up)")
     t.add_argument("--no-zwnj", action="store_true",
                    help="do not insert ZWNJ between affixes and stems (می‌، ‌ها، ‌ترین)")
+    t.add_argument("--no-punctuation", action="store_true",
+                   help="leave ? , ; and the spacing around them as they were written")
     t.add_argument("--digits", choices=DIGIT_MODES, default="keep",
                    help="convert digits to persian (۱۲۳) or western (123) (default: keep)")
 
@@ -270,6 +275,39 @@ def load_model_with_fallback(args: argparse.Namespace):
 # ---------------------------------------------------------------------- main
 
 
+def run_text_mode(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """``--text``: run the Persian clean-up over text and subtitle files.
+
+    No model is loaded and nothing is downloaded, so this works on a machine
+    that has never run Whisper at all.
+    """
+    from .textfix import fix_file, fix_stream
+
+    if not args.inputs:
+        parser.error("--text needs at least one file, or '-' to read stdin")
+    opts = dict(digits=args.digits, zwnj=not args.no_zwnj, punctuation=not args.no_punctuation)
+
+    failures = 0
+    for raw in args.inputs:
+        if raw == "-":
+            fix_stream(sys.stdin, sys.stdout, **opts)
+            continue
+        path = Path(raw).expanduser()
+        if not path.is_file():
+            log.error("no such file: %s", raw)
+            failures += 1
+            continue
+        try:
+            written = fix_file(path, args.output_dir, **opts)
+        except Exception as exc:  # noqa: BLE001 - keep going with the other files
+            log.error("%s: %s", path, exc)
+            failures += 1
+            continue
+        if written is not None:
+            log.info("%s -> %s", path, written)
+    return 1 if failures else 0
+
+
 def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]) -> None:
     from tqdm import tqdm
 
@@ -282,7 +320,7 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
     persian = args.task == "transcribe" and args.language == DEFAULT_LANGUAGE
     prompt = args.prompt if args.prompt is not None else (DEFAULT_PROMPT if persian else None)
     do_normalize = not args.no_normalize and args.task == "transcribe"
-    norm_opts = dict(digits=args.digits, zwnj=not args.no_zwnj)
+    norm_opts = dict(digits=args.digits, zwnj=not args.no_zwnj, punctuation=not args.no_punctuation)
 
     audio = load_audio(path)
     duration = audio_duration(audio)
@@ -345,7 +383,7 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
     if targets:
         out_dir.mkdir(parents=True, exist_ok=True)
     for fmt, target in targets.items():
-        source = subtitles if fmt in ("srt", "vtt") else transcript
+        source = subtitles if fmt in CUE_FORMATS else transcript
         write_transcript(source, fmt, target, rtl_mark=args.rtl_mark)
 
     speed = duration / elapsed if elapsed > 0 else 0.0
@@ -382,6 +420,9 @@ def _main(argv: Optional[Sequence[str]]) -> int:
         path = download_model(args.model, args.model_dir)
         log.info("model %s is available at %s", args.model, path)
         return 0
+    # Before collect_inputs: .srt and .txt are not media extensions.
+    if args.text:
+        return run_text_mode(args, parser)
 
     formats = parse_formats(args.formats, args.stdout)
     inputs = collect_inputs(args.inputs)

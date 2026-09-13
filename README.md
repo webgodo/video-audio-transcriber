@@ -82,6 +82,27 @@ vatfa clip.m4a --task translate -f txt     # English translation instead
 vatfa --list-models
 ```
 
+### Cleaning up text you already have
+
+The Persian clean-up is useful on its own, so it is also available with no
+model, no download and no media file. Point `--text` at a `.txt`, `.srt` or
+`.vtt` file, or pipe text through it:
+
+```bash
+vatfa --text subtitles.srt                 # cleaned-up copy on stdout
+vatfa --text subtitles.srt -o fixed/       # or written to a directory
+vatfa --text captions.vtt notes.txt -o out/
+echo 'من می روم و كتاب ها را می خوانم?' | vatfa --text -
+#   -> من می‌روم و کتاب‌ها را می‌خوانم؟
+```
+
+This works on YouTube auto-captions, subtitles downloaded from the web, and
+anything a person typed. Subtitle files keep their indices, timestamps, cue
+settings, WebVTT headers and `NOTE` blocks byte for byte; only the cue text is
+touched, so a malformed file can never come out more broken than it went in.
+Legacy windows-1256 files are decoded automatically, which matters because
+that encoding cannot represent `ی` or `ک` at all.
+
 ### Options
 
 | Option | Meaning |
