@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Actions only. The Python dependencies have loose lower bounds and no
+  # lockfile, so a pip ecosystem here would have nothing meaningful to bump.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci

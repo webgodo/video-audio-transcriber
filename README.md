@@ -337,8 +337,13 @@ Rules of thumb:
 
 ```bash
 pip install -e '.[dev]'
-pytest
+pytest && ruff check .
 ```
+
+The whole suite runs in under a second and needs neither a model nor a GPU,
+because every heavy import happens inside a function. That is what lets CI
+cover Python 3.9 to 3.13 plus macOS and Windows in about a minute, so please
+keep it that way. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The package layout: `transcriber.py` wraps faster-whisper (model loading,
 GPU library discovery, decoding), `normalize.py` holds the Persian text
