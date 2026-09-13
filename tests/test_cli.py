@@ -28,3 +28,20 @@ def test_program_name_falls_back_for_module_and_repl(monkeypatch):
     assert program_name() == "vatfa"
     monkeypatch.setattr("sys.argv", [""])
     assert program_name() == "vatfa"
+
+
+def test_language_defaults_to_auto_detection():
+    from video_audio_transcriber.cli import build_parser
+
+    args = build_parser().parse_args(["a.mp3"])
+    assert args.language == "auto"
+
+
+def test_persian_lookalikes_cover_the_usual_misdetections():
+    from video_audio_transcriber.transcriber import PERSIAN_LOOKALIKES
+
+    # These share a script with Persian, so a misdetection lands on one of them.
+    for code in ("ar", "ur", "ps"):
+        assert code in PERSIAN_LOOKALIKES
+    assert "en" not in PERSIAN_LOOKALIKES
+    assert "fa" not in PERSIAN_LOOKALIKES  # not a misdetection of itself

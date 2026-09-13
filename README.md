@@ -1,18 +1,45 @@
 # video-audio-transcriber
 
+**Offline audio and video transcription built on [OpenAI Whisper](https://github.com/openai/whisper),
+with Persian text handled properly.** No API keys, no uploads, no per-minute fees. Ninety-plus
+languages, and one of them is treated as more than a checkbox.
+
 [![CI](https://github.com/webgodo/video-audio-transcriber/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/webgodo/video-audio-transcriber/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Runs 100% offline](https://img.shields.io/badge/runs-100%25%20offline-lightgrey.svg)](#how-it-works)
 
-Offline Persian (Farsi) transcription for audio and video files, built on
-[OpenAI Whisper](https://github.com/openai/whisper). Everything runs on your
-own machine: no API keys, no uploads, no per-minute fees.
-
 ```bash
-vatfa lecture.mp3            # -> lecture.txt and lecture.srt next to the file
-vatfa interview.mp4 -f srt   # subtitles for a video
+pip install git+https://github.com/webgodo/video-audio-transcriber
+vatfa lecture.mp3            # -> lecture.txt + lecture.srt, next to the file
+vatfa interview.mp4 -f html  # -> an interactive page: click a line, the audio seeks
 ```
+
+* **Fast.** `large-v3` runs at 6 to 17x realtime on a laptop RTX 4060, about
+  1.1x on a 16-thread CPU. No system CUDA needed; the GPU libraries come from pip.
+* **Nothing to install beyond pip.** No system FFmpeg either: audio is decoded
+  through PyAV, which brings its own.
+* **Subtitles you can ship.** `srt` and `vtt`, re-split on word timestamps to a
+  line length you choose, with an optional right-to-left mark.
+* **Measured, not asserted.** `--reference` reports word and character error
+  rates, before and after the Persian clean-up.
+
+### Whisper transcribes Persian. It does not write Persian.
+
+Whisper hears Persian well and then spells it inconsistently: Arabic letters
+in place of Persian ones, affixes split by spaces instead of a zero-width
+non-joiner, Latin punctuation. All of it breaks search and reads as wrong to a
+Persian reader. This tool fixes it after decoding:
+
+| Whisper, raw | after the clean-up |
+| --- | --- |
+| `من می خواهم كتاب ها را بخوانم?` | `من می‌خواهم کتاب‌ها را بخوانم؟` |
+| `سال ١٤٠٣ بود , بزرگ ترین شهر` | `سال ۱۴۰۳ بود، بزرگ‌ترین شهر` |
+| `سلام .خوبی ؟ نمی دانم` | `سلام. خوبی؟ نمی‌دانم` |
+
+The same clean-up runs on subtitle files you already have, with no model at
+all: `vatfa --text downloaded.srt`. Full details in
+[Persian specifics](#persian-specifics).
 
 ## How it works
 
@@ -206,7 +233,7 @@ that encoding cannot represent `ی` or `ک` at all.
 | `--compute-type TYPE` | Default `float16` on GPU, `int8` on CPU. `int8_float16` halves GPU memory. |
 | `--threads N` | CPU threads (default: half the logical cores). |
 | `--model-dir DIR`, `--offline` | Model cache location; never download. |
-| `-l LANG` | Language (default `fa`). `auto` detects, but see below. |
+| `-l LANG` | Language (default `auto`). Pass `fa` for Persian audio that might be misdetected. |
 | `--task translate` | Produce English text instead of Persian. |
 | `--beam-size N` | Default 5. `1` is faster and slightly less accurate. |
 | `--no-vad` | Disable voice activity detection. |
@@ -220,10 +247,12 @@ that encoding cannot represent `ی` or `ک` at all.
 
 ## Persian specifics
 
-**The language is forced to `fa`.** Whisper's language detector regularly
-labels Persian speech as Arabic, Urdu or Pashto, after which it transcribes in
-the wrong script. Forcing `fa` avoids that. `-l auto` is available for mixed
-collections, but expect occasional misdetection on short or noisy clips.
+**Language detection, and when to override it.** The language is detected
+before decoding, because the initial prompt is chosen from it. Whisper's
+detector regularly labels Persian speech as Arabic, Urdu or Pashto, after
+which it transcribes in the wrong script, so when it reports one of those the
+tool says so and suggests `-l fa`. On clean Persian audio detection is
+reliable; on a short or noisy clip, pass `-l fa` and skip the question.
 
 **Initial prompt.** Whisper treats the prompt as text that came before the
 audio, so a well-formed Persian sentence with ZWNJs and Persian punctuation
