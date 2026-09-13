@@ -1,8 +1,8 @@
 import io
 import json
 
-from transcribe_fa.transcriber import Segment, Transcript, Word
-from transcribe_fa.writers import (
+from video_audio_transcriber.transcriber import Segment, Transcript, Word
+from video_audio_transcriber.writers import (
     RLM,
     format_timestamp,
     split_for_subtitles,

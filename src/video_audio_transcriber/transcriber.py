@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union
 
-log = logging.getLogger("transcribe_fa")
+log = logging.getLogger("video_audio_transcriber")
 
 SAMPLE_RATE = 16_000
 DEFAULT_MODEL = "large-v3"

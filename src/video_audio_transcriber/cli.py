@@ -1,4 +1,4 @@
-"""Command-line interface: ``transcribe-fa FILE...``."""
+"""Command-line interface: ``vatfa FILE...``."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from .transcriber import (
 )
 from .writers import FORMATS, split_for_subtitles, write_transcript
 
-log = logging.getLogger("transcribe_fa")
+log = logging.getLogger("video_audio_transcriber")
 
 MEDIA_EXTENSIONS = {
     # audio
@@ -44,18 +44,31 @@ DEFAULT_FORMATS = ("txt", "srt")
 
 EPILOG = """\
 examples:
-  transcribe-fa lecture.mp3                       # writes lecture.txt + lecture.srt next to it
-  transcribe-fa video.mp4 -f srt --max-cue-chars 42
-  transcribe-fa *.m4a -o out/ -f txt,json --word-timestamps
-  transcribe-fa interview.wav --stdout | less
-  transcribe-fa recordings/ -m medium --device cpu
-  transcribe-fa --download-only                   # fetch the default model ahead of time
+  vatfa lecture.mp3                       # writes lecture.txt + lecture.srt next to it
+  vatfa video.mp4 -f srt --max-cue-chars 42
+  vatfa *.m4a -o out/ -f txt,json --word-timestamps
+  vatfa interview.wav --stdout | less
+  vatfa recordings/ -m medium --device cpu
+  vatfa --download-only                   # fetch the default model ahead of time
 """
+
+
+def program_name() -> str:
+    """The command the user actually typed, for help text and error messages.
+
+    The package installs two console scripts (``video-audio-transcriber`` and
+    the short ``vatfa``), so hardcoding either one would print usage the reader
+    cannot copy. Falls back to ``vatfa`` for ``python -m`` and for REPL use.
+    """
+    name = os.path.basename(sys.argv[0] or "")
+    if not name or name.startswith(("__", "-")) or name.endswith(".py"):
+        return "vatfa"
+    return name
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="transcribe-fa",
+        prog=program_name(),
         description="Offline Persian (Farsi) audio/video transcription with OpenAI Whisper.",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -143,6 +156,25 @@ class _Formatter(logging.Formatter):
         return message
 
 
+def force_utf8(*streams: object) -> None:
+    """Make sure Persian text can be written to the given streams.
+
+    Windows consoles default to a legacy code page (cp1252 on a stock GitHub
+    runner) that cannot encode a single Persian letter. Without this, both
+    ``--help`` and piping a transcript to stdout die with UnicodeEncodeError.
+    Python can reconfigure a text stream in place since 3.7; streams that do
+    not support it (a pytest capture object, a plain StringIO) are skipped.
+    """
+    for stream in streams:
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # detached or already-closed stream
+            pass
+
+
 def setup_logging(verbose: bool, quiet: bool) -> None:
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(_Formatter("%(message)s"))
@@ -226,7 +258,7 @@ def load_model_with_fallback(args: argparse.Namespace):
         if device != "cuda" or args.device != "auto":
             raise
         log.warning("GPU initialisation failed (%s)", str(exc).splitlines()[0])
-        log.warning("falling back to CPU; for GPU support run: pip install 'transcribe-fa[cuda]'")
+        log.warning("falling back to CPU; for GPU support run: pip install 'video-audio-transcriber[cuda]'")
         device = "cpu"
         compute_type = resolve_compute_type(device, args.compute_type)
         common["cpu_threads"] = args.threads or max(1, (os.cpu_count() or 2) // 2)
@@ -328,6 +360,9 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # Before parsing: --help and --version print Persian and exit from inside
+    # parse_args, so this cannot wait until after it.
+    force_utf8(sys.stdout, sys.stderr)
     try:
         return _main(argv)
     except KeyboardInterrupt:

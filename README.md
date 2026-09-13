@@ -1,14 +1,17 @@
-# transcribe-fa
+# video-audio-transcriber
+
+[![CI](https://github.com/webgodo/video-audio-transcriber/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/webgodo/video-audio-transcriber/actions/workflows/ci.yml)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Runs 100% offline](https://img.shields.io/badge/runs-100%25%20offline-lightgrey.svg)](#how-it-works)
 
 Offline Persian (Farsi) transcription for audio and video files, built on
 [OpenAI Whisper](https://github.com/openai/whisper). Everything runs on your
 own machine: no API keys, no uploads, no per-minute fees.
 
-Repository: <https://github.com/webgodo/video-audio-transcriber>
-
 ```bash
-transcribe-fa lecture.mp3            # -> lecture.txt and lecture.srt next to the file
-transcribe-fa interview.mp4 -f srt   # subtitles for a video
+vatfa lecture.mp3            # -> lecture.txt and lecture.srt next to the file
+vatfa interview.mp4 -f srt   # subtitles for a video
 ```
 
 ## How it works
@@ -51,8 +54,8 @@ Or as an isolated tool: `pipx install .` (or `pipx install '.[cuda]'`).
 The model is downloaded on first use. To fetch it ahead of time:
 
 ```bash
-transcribe-fa --download-only            # large-v3
-transcribe-fa --download-only -m medium
+vatfa --download-only            # large-v3
+vatfa --download-only -m medium
 ```
 
 Downloads resume if interrupted, so re-run the command if your connection drops.
@@ -60,7 +63,7 @@ Downloads resume if interrupted, so re-run the command if your connection drops.
 ## Usage
 
 ```
-transcribe-fa [options] FILE [FILE ...]
+vatfa [options] FILE [FILE ...]
 ```
 
 Inputs can be files or directories (directories are searched recursively for
@@ -68,15 +71,15 @@ media files). By default a `.txt` and a `.srt` file are written next to each
 input.
 
 ```bash
-transcribe-fa talk.mp3                             # talk.txt + talk.srt
-transcribe-fa talk.mp3 -f txt,json --word-timestamps
-transcribe-fa video.mp4 -f srt --max-cue-chars 42  # subtitle-sized cues
-transcribe-fa recordings/ -o transcripts/          # batch, outputs in one folder
-transcribe-fa call.wav --stdout | grep قرارداد      # plain text on stdout, pipe-friendly
-transcribe-fa long-podcast.mp3 --batch-size 8      # GPU: batched decoding, several times faster
-transcribe-fa clip.m4a -m medium --device cpu      # lighter model on the CPU
-transcribe-fa clip.m4a --task translate -f txt     # English translation instead
-transcribe-fa --list-models
+vatfa talk.mp3                             # talk.txt + talk.srt
+vatfa talk.mp3 -f txt,json --word-timestamps
+vatfa video.mp4 -f srt --max-cue-chars 42  # subtitle-sized cues
+vatfa recordings/ -o transcripts/          # batch, outputs in one folder
+vatfa call.wav --stdout | grep قرارداد      # plain text on stdout, pipe-friendly
+vatfa long-podcast.mp3 --batch-size 8      # GPU: batched decoding, several times faster
+vatfa clip.m4a -m medium --device cpu      # lighter model on the CPU
+vatfa clip.m4a --task translate -f txt     # English translation instead
+vatfa --list-models
 ```
 
 ### Options
