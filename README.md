@@ -106,6 +106,32 @@ seeking needs a server that supports HTTP range requests. GitHub Pages, nginx
 and Apache all do. Python's `http.server` does not, so audio opened through it
 will play but refuse to seek. `--embed-media` sidesteps the question entirely.
 
+### Measuring accuracy
+
+`--reference` scores a transcript against a known-correct one, so a claim
+about quality can be a measurement rather than an assertion.
+
+```bash
+vatfa clip.mp3 --reference clip.reference.txt
+vatfa recordings/ --reference references/     # matched by file name
+```
+
+```
+file                              WER      CER     WER*     CER*
+----------------------------------------------------------------
+clip.mp3                        14.7%     4.7%    15.0%     3.9%
+```
+
+The starred columns fold Persian orthography away first: `ی`/`ک`,
+Arabic-Indic digits, punctuation and diacritics. `CER*` also ignores every
+word separator, so `می‌رود`, `می رود` and `میرود` all score the same.
+
+The difference between the columns is the point. A transcript can score 100%
+word error raw and 0% starred, which means the model heard every word
+correctly and wrote all of them in the other convention. That gap is what the
+clean-up above removes. The starred columns re-segment the text, so they are a
+separate measurement rather than the unstarred ones minus something.
+
 ### Cleaning up text you already have
 
 The Persian clean-up is useful on its own, so it is also available with no
@@ -152,6 +178,7 @@ that encoding cannot represent `ی` or `ک` at all.
 | `--no-context` | Do not condition on previous text; fixes runaway repetition. |
 | `--batch-size N` | Batched decoding (GPU), e.g. `8`. |
 | `--no-normalize`, `--no-zwnj`, `--digits MODE` | Persian clean-up controls, see below. |
+| `--reference PATH` | Score against a reference transcript: a `.txt` file, or a directory matched by input name. |
 | `-q`, `-v` | Quiet / verbose. |
 
 ## Persian specifics

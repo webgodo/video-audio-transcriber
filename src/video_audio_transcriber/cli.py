@@ -150,6 +150,12 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--digits", choices=DIGIT_MODES, default="keep",
                    help="convert digits to persian (۱۲۳) or western (123) (default: keep)")
 
+    e = p.add_argument_group("evaluation")
+    e.add_argument("--reference", type=Path, metavar="PATH",
+                   help="score the transcript against a reference: a .txt file, or a directory "
+                        "of .txt files matched by input name. Reports word and character error "
+                        "rates, before and after the Persian clean-up")
+
     v = p.add_argument_group("verbosity")
     v.add_argument("-q", "--quiet", action="store_true", help="no progress bar or live segments")
     v.add_argument("-v", "--verbose", action="store_true", help="debug output")
@@ -314,14 +320,14 @@ def run_text_mode(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
     return 1 if failures else 0
 
 
-def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]) -> None:
+def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]) -> Optional[dict]:
     from tqdm import tqdm
 
     out_dir = args.output_dir or path.parent
     targets = {fmt: out_dir / f"{path.stem}.{fmt}" for fmt in formats}
     if args.skip_existing and targets and all(t.exists() for t in targets.values()):
         log.info("%s: outputs exist, skipping", path.name)
-        return
+        return None
 
     persian = args.task == "transcribe" and args.language == DEFAULT_LANGUAGE
     prompt = args.prompt if args.prompt is not None else (DEFAULT_PROMPT if persian else None)
@@ -403,6 +409,15 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
     log.info("%s: %d segments in %.1fs (%.1fx realtime) -> %s",
              path.name, len(transcript.segments), elapsed, speed, written)
 
+    if args.reference is None:
+        return None
+    from .evaluate import compare, read_reference
+
+    reference = read_reference(path, args.reference)
+    if reference is None:
+        return None
+    return compare(reference, transcript.text)
+
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     # Before parsing: --help and --version print Persian and exit from inside
@@ -445,16 +460,23 @@ def _main(argv: Optional[Sequence[str]]) -> int:
         return 2
 
     failures = 0
+    scores: List[tuple] = []
     for index, path in enumerate(inputs, 1):
         if len(inputs) > 1:
             log.info("[%d/%d] %s", index, len(inputs), path)
         try:
-            process_file(path, model, args, formats)
+            rates = process_file(path, model, args, formats)
+            if rates is not None:
+                scores.append((path.name, rates))
         except Exception as exc:  # noqa: BLE001 - keep going with the other files
             failures += 1
             log.error("%s: %s", path, exc)
             if args.verbose:
                 log.exception("traceback")
+    if scores:
+        from .evaluate import format_table
+
+        print(format_table(scores))
     if failures:
         log.error("%d of %d files failed", failures, len(inputs))
     return 1 if failures else 0
