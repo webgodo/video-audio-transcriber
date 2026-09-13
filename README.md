@@ -27,8 +27,9 @@ vatfa interview.mp4 -f srt   # subtitles for a video
 * **Persian-aware clean-up** of the raw model output (see below).
 * **Voice activity detection** (Silero VAD, built into faster-whisper) skips
   silence, which is where Whisper tends to hallucinate text.
-* **Outputs:** `txt`, `srt`, `vtt`, `json` (optionally with word timestamps)
-  and `tsv`.
+* **Outputs:** `txt`, `srt`, `vtt`, `json` (optionally with word timestamps),
+  `tsv`, and a self-contained interactive `html` page.
+* **Interfaces:** a command line, and an optional local browser interface.
 
 ## Requirements
 
@@ -83,6 +84,21 @@ vatfa podcast.mp3 -f html                  # interactive page: click a line, it 
 vatfa https://example.com/episode-42       # download from a URL, then transcribe
 vatfa --list-models
 ```
+
+### Browser interface
+
+If a command line is not what you want, there is a small web interface:
+
+```bash
+pip install 'video-audio-transcriber[web]'    # needs Python 3.10+
+vatfa-web --open
+```
+
+It binds to `127.0.0.1` and talks to the model on your own machine, so nothing
+is uploaded anywhere. Text appears as it is decoded rather than all at once,
+every control maps onto a command-line flag, and the page shows the equivalent
+command for whatever you have selected. Transcripts download as `srt`, `vtt`,
+`txt`, `json` and a self-contained `html` page.
 
 ### Transcribing from a URL
 

@@ -41,6 +41,10 @@ cuda = ["nvidia-cublas-cu12"]
 # Downloading media from a URL. No upper pin on purpose: yt-dlp's whole value
 # is that it floats ahead of the sites it supports.
 url = ["yt-dlp"]
+# Browser interface. Gradio needs Python 3.10+ while this package supports 3.9,
+# hence the marker; it also pulls in ~30 packages, which is why the core stays
+# without it.
+web = ["gradio>=6,<7; python_version >= '3.10'"]
 dev = ["pytest", "ruff==0.16.7", "yt-dlp"]
 
 [project.urls]
@@ -51,6 +55,7 @@ Issues = "https://github.com/webgodo/video-audio-transcriber/issues"
 [project.scripts]
 video-audio-transcriber = "video_audio_transcriber.cli:main"
 vatfa = "video_audio_transcriber.cli:main"
+vatfa-web = "video_audio_transcriber.web:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
