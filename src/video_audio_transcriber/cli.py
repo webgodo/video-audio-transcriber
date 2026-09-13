@@ -19,8 +19,10 @@ from .transcriber import (
     DEFAULT_MODEL,
     DEFAULT_PROMPT,
     MODELS,
+    PERSIAN_LOOKALIKES,
     Segment,
     audio_duration,
+    detect_language,
     download_model,
     load_audio,
     load_model,
@@ -73,7 +75,8 @@ def program_name() -> str:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog=program_name(),
-        description="Offline Persian (Farsi) audio/video transcription with OpenAI Whisper.",
+        description="Offline audio and video transcription with OpenAI Whisper, "
+                    "with Persian (Farsi) text handled properly.",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -123,9 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
     m.add_argument("--download-only", action="store_true", help="download the model and exit")
 
     d = p.add_argument_group("decoding")
-    d.add_argument("-l", "--language", default=DEFAULT_LANGUAGE, metavar="LANG",
-                   help=f"language code, or 'auto' to detect (default: {DEFAULT_LANGUAGE}; "
-                        "forcing it avoids Arabic/Urdu misdetection)")
+    d.add_argument("-l", "--language", default="auto", metavar="LANG",
+                   help="language code, or 'auto' to detect (default: auto). Forcing 'fa' is "
+                        "worth it for Persian: Whisper often hears it as Arabic or Urdu")
     d.add_argument("--task", choices=("transcribe", "translate"), default="transcribe",
                    help="'translate' produces English text instead")
     d.add_argument("--beam-size", type=int, default=5, metavar="N",
@@ -335,14 +338,25 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
         log.info("%s: outputs exist, skipping", path.name)
         return None
 
-    persian = args.task == "transcribe" and args.language == DEFAULT_LANGUAGE
-    prompt = args.prompt if args.prompt is not None else (DEFAULT_PROMPT if persian else None)
     do_normalize = not args.no_normalize and args.task == "transcribe"
     norm_opts = dict(digits=args.digits, zwnj=not args.no_zwnj, punctuation=not args.no_punctuation)
 
     audio = load_audio(path)
     duration = audio_duration(audio)
     log.info("%s: %s of audio", path.name, _clock(duration))
+
+    # Resolve the language before decoding: the initial prompt is chosen from
+    # it, and on Persian that prompt is the difference between ZWNJs appearing
+    # and not appearing at all.
+    language = args.language
+    if language == "auto":
+        language, confidence = detect_language(model, audio, vad=not args.no_vad)
+        log.info("%s: detected %s (%.0f%%)", path.name, language, confidence * 100)
+        if language in PERSIAN_LOOKALIKES:
+            log.warning("%s looks like %s; if this is Persian, re-run with -l fa",
+                        path.name, language)
+    persian = args.task == "transcribe" and language == DEFAULT_LANGUAGE
+    prompt = args.prompt if args.prompt is not None else (DEFAULT_PROMPT if persian else None)
 
     bar = tqdm(
         total=round(duration, 1),
@@ -357,7 +371,7 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
         bar.n = min(duration, max(bar.n, segment.end))
         bar.refresh()
         text = segment.text
-        if do_normalize and (persian or args.language == "auto"):
+        if do_normalize and persian:
             text = normalize(text, **norm_opts)
         if args.stdout:
             tqdm.write(text, file=sys.stdout)
@@ -371,7 +385,7 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
             audio,
             source=str(path),
             model_name=args.model,
-            language=None if args.language == "auto" else args.language,
+            language=language,
             task=args.task,
             beam_size=args.beam_size,
             vad=not args.no_vad,
@@ -385,9 +399,6 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
         bar.close()
     elapsed = time.monotonic() - started
 
-    if args.language == "auto":
-        log.info("detected language: %s (%.0f%%)", transcript.language,
-                 transcript.language_probability * 100)
     if do_normalize and transcript.language == DEFAULT_LANGUAGE:
         normalize_transcript(transcript, **norm_opts)
 

@@ -15,7 +15,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 log = logging.getLogger("video_audio_transcriber")
 
@@ -164,6 +164,23 @@ def load_model(
         download_root=str(download_root) if download_root else None,
         local_files_only=local_files_only,
     )
+
+
+#: Languages Whisper regularly returns for Persian speech. Sharing a script
+#: with Persian, they are what a misdetection looks like, so seeing one of
+#: these is worth telling the user about.
+PERSIAN_LOOKALIKES = frozenset({"ar", "ur", "ps", "tg", "ckb", "sd"})
+
+
+def detect_language(model: Any, audio: Any, *, vad: bool = True) -> Tuple[str, float]:
+    """Identify the spoken language before decoding.
+
+    Decoding needs to know the language up front, because the initial prompt
+    is chosen from it and the prompt measurably changes Persian output. One
+    extra forward pass over the opening seconds is cheap next to that.
+    """
+    language, probability, _ = model.detect_language(audio=audio, vad_filter=vad)
+    return language, float(probability)
 
 
 def warm_up(model: Any) -> None:
