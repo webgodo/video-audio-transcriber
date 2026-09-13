@@ -1,4 +1,4 @@
-from transcribe_fa.normalize import ZWNJ, normalize, normalize_word
+from video_audio_transcriber.normalize import ZWNJ, normalize, normalize_word
 
 
 def test_arabic_letters_become_persian():
