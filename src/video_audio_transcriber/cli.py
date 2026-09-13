@@ -156,6 +156,25 @@ class _Formatter(logging.Formatter):
         return message
 
 
+def force_utf8(*streams: object) -> None:
+    """Make sure Persian text can be written to the given streams.
+
+    Windows consoles default to a legacy code page (cp1252 on a stock GitHub
+    runner) that cannot encode a single Persian letter. Without this, both
+    ``--help`` and piping a transcript to stdout die with UnicodeEncodeError.
+    Python can reconfigure a text stream in place since 3.7; streams that do
+    not support it (a pytest capture object, a plain StringIO) are skipped.
+    """
+    for stream in streams:
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # detached or already-closed stream
+            pass
+
+
 def setup_logging(verbose: bool, quiet: bool) -> None:
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(_Formatter("%(message)s"))
@@ -341,6 +360,9 @@ def process_file(path: Path, model, args: argparse.Namespace, formats: List[str]
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # Before parsing: --help and --version print Persian and exit from inside
+    # parse_args, so this cannot wait until after it.
+    force_utf8(sys.stdout, sys.stderr)
     try:
         return _main(argv)
     except KeyboardInterrupt:
