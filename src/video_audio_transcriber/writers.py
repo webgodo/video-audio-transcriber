@@ -8,7 +8,6 @@ from typing import IO, Callable, Dict, Iterable, List
 
 from .transcriber import Segment, Transcript, Word
 
-FORMATS = ("txt", "srt", "vtt", "json", "tsv")
 RLM = "\u200f"  # RIGHT-TO-LEFT MARK
 
 
@@ -119,6 +118,15 @@ WRITERS: Dict[str, Callable[..., None]] = {
     "json": write_json,
     "tsv": write_tsv,
 }
+
+#: Every supported ``-f`` value, in the order they are offered on the CLI.
+#: Derived from :data:`WRITERS` (dicts keep insertion order) so the two can
+#: never drift apart; registering a writer is all it takes to add a format.
+FORMATS = tuple(WRITERS)
+
+#: Formats made of timed cues, which are written from the subtitle-split copy
+#: of the transcript rather than from Whisper's own long segments.
+CUE_FORMATS = frozenset({"srt", "vtt"})
 
 
 def write_transcript(transcript: Transcript, fmt: str, path, **options: object) -> None:

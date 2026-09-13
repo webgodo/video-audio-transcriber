@@ -97,3 +97,11 @@ def test_split_for_subtitles_passthrough():
     long_no_words = Segment(0, 0.0, 30.0, "x" * 100)
     short = Segment(1, 30.0, 31.0, "کوتاه", words=[Word(30.0, 31.0, " کوتاه", 0.9)])
     assert split_for_subtitles([long_no_words, short], max_chars=10) == [long_no_words, short]
+
+
+def test_format_registry_stays_in_sync():
+    from video_audio_transcriber.writers import CUE_FORMATS, FORMATS, WRITERS
+
+    assert set(FORMATS) == set(WRITERS)
+    assert tuple(FORMATS) == tuple(WRITERS)  # order is the order offered on the CLI
+    assert CUE_FORMATS <= set(FORMATS)
