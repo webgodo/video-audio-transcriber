@@ -38,7 +38,10 @@ dependencies = [
 # NVIDIA cuBLAS for GPU inference, installed via pip so no system-wide CUDA
 # install is needed (CTranslate2 >= 4.8.2 no longer needs cuDNN).
 cuda = ["nvidia-cublas-cu12"]
-dev = ["pytest", "ruff==0.16.7"]
+# Downloading media from a URL. No upper pin on purpose: yt-dlp's whole value
+# is that it floats ahead of the sites it supports.
+url = ["yt-dlp"]
+dev = ["pytest", "ruff==0.16.7", "yt-dlp"]
 
 [project.urls]
 Homepage = "https://github.com/webgodo/video-audio-transcriber"

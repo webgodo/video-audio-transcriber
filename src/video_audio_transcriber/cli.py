@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import List, Optional, Sequence
 
 from . import __version__
+from .fetch import is_url
 from .normalize import DIGIT_MODES, normalize, normalize_transcript
 from .transcriber import (
     DEFAULT_LANGUAGE,
@@ -49,6 +50,7 @@ examples:
   vatfa *.m4a -o out/ -f txt,json --word-timestamps
   vatfa interview.wav --stdout | less
   vatfa recordings/ -m medium --device cpu
+  vatfa https://example.com/talk          # download and transcribe straight from a URL
   vatfa podcast.mp3 -f html               # interactive page: click a line, it seeks
   vatfa subtitles.srt --text              # Persian clean-up only, no model needed
   vatfa --download-only                   # fetch the default model ahead of time
@@ -75,7 +77,8 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("inputs", nargs="*", metavar="FILE", help="audio/video files or directories")
+    p.add_argument("inputs", nargs="*", metavar="FILE",
+                   help="audio/video files, directories, or URLs to download")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     out = p.add_argument_group("output")
@@ -98,6 +101,9 @@ def build_parser() -> argparse.ArgumentParser:
                           "correctly in players without proper bidi support")
     out.add_argument("--skip-existing", action="store_true",
                      help="skip inputs whose output files already exist")
+    out.add_argument("--download-dir", type=Path, metavar="DIR",
+                     help="where to keep media downloaded from URLs "
+                          "(default: the output directory, or the current directory)")
 
     m = p.add_argument_group("model")
     m.add_argument("-m", "--model", default=DEFAULT_MODEL,
@@ -447,8 +453,22 @@ def _main(argv: Optional[Sequence[str]]) -> int:
         return run_text_mode(args, parser)
 
     formats = parse_formats(args.formats, args.stdout)
-    inputs = collect_inputs(args.inputs)
+    raw_inputs = args.inputs
+    urls = [raw for raw in raw_inputs if is_url(raw)]
+    if urls:
+        from .fetch import resolve_urls
+
+        dest = args.download_dir or args.output_dir or Path.cwd()
+        raw_inputs = resolve_urls(raw_inputs, dest, verbose=args.verbose)
+    elif args.download_dir is not None:
+        log.warning("--download-dir has no effect without a URL input")
+    inputs = collect_inputs(raw_inputs)
     if not inputs:
+        # Saying "no input files given" after a download failed sends people
+        # looking in the wrong place.
+        if urls and len(urls) == len(args.inputs):
+            log.error("nothing could be downloaded from the URL(s) given")
+            return 1
         parser.error("no input files given (or none with a known media extension)")
     if args.max_cue_chars < 0 or args.beam_size < 1 or args.batch_size < 0:
         parser.error("--max-cue-chars, --beam-size and --batch-size must be non-negative")

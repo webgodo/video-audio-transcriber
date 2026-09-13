@@ -66,8 +66,8 @@ Downloads resume if interrupted, so re-run the command if your connection drops.
 vatfa [options] FILE [FILE ...]
 ```
 
-Inputs can be files or directories (directories are searched recursively for
-media files). By default a `.txt` and a `.srt` file are written next to each
+Inputs can be files, directories or URLs (directories are searched recursively
+for media files). By default a `.txt` and a `.srt` file are written next to each
 input.
 
 ```bash
@@ -80,8 +80,28 @@ vatfa long-podcast.mp3 --batch-size 8      # GPU: batched decoding, several time
 vatfa clip.m4a -m medium --device cpu      # lighter model on the CPU
 vatfa clip.m4a --task translate -f txt     # English translation instead
 vatfa podcast.mp3 -f html                  # interactive page: click a line, it seeks
+vatfa https://example.com/episode-42       # download from a URL, then transcribe
 vatfa --list-models
 ```
+
+### Transcribing from a URL
+
+Paste a link instead of a file and the media is downloaded first:
+
+```bash
+pip install 'video-audio-transcriber[url]'
+vatfa https://example.com/episode-42 -f srt
+vatfa https://example.com/talk --download-dir ~/media -o transcripts/
+```
+
+Anything [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports works. This is the
+only part of the tool that uses the network; transcription still happens
+entirely on your machine. Respect the terms of the site you are downloading
+from, and the rights of whoever made the audio.
+
+Playlists are not expanded, so a channel link transcribes one item rather than
+two hundred, and live streams are refused rather than downloaded forever. If
+one URL in a batch fails, it is reported and the rest still run.
 
 ### Interactive transcripts
 
@@ -163,6 +183,7 @@ that encoding cannot represent `ی` or `ک` at all.
 | `--max-cue-chars N` | Split `srt`/`vtt` cues longer than N characters on word boundaries (implies word timestamps). |
 | `--embed-media` | For `-f html`: inline the media into the page so the file works on its own. |
 | `--rtl-mark` | Prefix subtitle lines with U+200F for players that render trailing `؟` `.` on the wrong side. |
+| `--download-dir DIR` | Where to keep media downloaded from URLs. |
 | `--skip-existing` | Skip inputs whose output files already exist (resumable batch runs). |
 | `-m MODEL` | `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3` (default), `large-v3-turbo`, or a path / Hugging Face repo of a CTranslate2 Whisper model. |
 | `--device auto/cpu/cuda` | Default `auto`: GPU when available, otherwise CPU. |
